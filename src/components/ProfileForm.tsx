@@ -135,8 +135,8 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFo
                 <div key={country} className="flex items-center space-x-2">
                   <Checkbox
                     id={country}
-                    checked={formData.preferredCountries.includes(country)}
-                    onCheckedChange={(checked) => handleCountryChange(country, checked)}
+                    checked={formData.preferredCountries?.includes(country)}
+                    onCheckedChange={(checked) => handleCountryChange(country, checked === true)}
                   />
                   <Label htmlFor={country} className="text-sm">{country}</Label>
                 </div>
@@ -151,8 +151,8 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFo
                 <div key={field} className="flex items-center space-x-2">
                   <Checkbox
                     id={field}
-                    checked={formData.academicInterests.includes(field)}
-                    onCheckedChange={(checked) => handleFieldChange(field, checked)}
+                    checked={formData.academicInterests?.includes(field)}
+                    onCheckedChange={(checked) => handleFieldChange(field, checked === true)}
                   />
                   <Label htmlFor={field} className="text-sm">{field}</Label>
                 </div>
