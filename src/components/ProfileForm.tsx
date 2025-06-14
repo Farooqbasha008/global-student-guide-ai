@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 
-const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }) => {
-  const [formData, setFormData] = useState({
+interface ProfileData {
+  budget?: string;
+  preferredCountries?: string[];
+  academicInterests?: string[];
+  currentEducation?: string;
+  workExperience?: string;
+  englishProficiency?: string;
+  timeline?: string;
+  name?: string;
+  email?: string;
+}
+
+interface ProfileFormProps {
+  onComplete: (data: ProfileData) => void;
+  initialData?: ProfileData;
+  isEdit?: boolean;
+}
+
+const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFormProps) => {
+  const [formData, setFormData] = useState<ProfileData>({
     budget: initialData.budget || '',
     preferredCountries: initialData.preferredCountries || [],
     academicInterests: initialData.academicInterests || [],
@@ -30,28 +47,28 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }) => {
     'Medicine', 'Arts & Humanities', 'Sciences', 'Economics', 'Law'
   ];
 
-  const handleCountryChange = (country, checked) => {
+  const handleCountryChange = (country: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       preferredCountries: checked 
-        ? [...prev.preferredCountries, country]
-        : prev.preferredCountries.filter(c => c !== country)
+        ? [...(prev.preferredCountries || []), country]
+        : (prev.preferredCountries || []).filter(c => c !== country)
     }));
   };
 
-  const handleFieldChange = (field, checked) => {
+  const handleFieldChange = (field: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       academicInterests: checked 
-        ? [...prev.academicInterests, field]
-        : prev.academicInterests.filter(f => f !== field)
+        ? [...(prev.academicInterests || []), field]
+        : (prev.academicInterests || []).filter(f => f !== field)
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.budget || formData.preferredCountries.length === 0 || formData.academicInterests.length === 0) {
+    if (!formData.budget || !formData.preferredCountries?.length || !formData.academicInterests?.length) {
       toast({
         title: "Incomplete Profile",
         description: "Please fill in all required fields",
