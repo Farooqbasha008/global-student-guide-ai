@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 // Initialize the OpenAI client with Novita AI's base URL
 const createNovitaClient = (apiKey: string) => {
   return new OpenAI({
-    baseURL: 'https://api.novita.ai/v3/openai',
+    baseURL: 'https://corsproxy.io/?url=' + encodeURIComponent('https://api.novita.ai/v3/openai'),
     apiKey: apiKey || import.meta.env.VITE_NOVITA_API_KEY || '',
     dangerouslyAllowBrowser: true
   });
