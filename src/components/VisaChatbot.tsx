@@ -1,9 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Badge, ScrollArea } from "@/components/ui";
 import { 
   Send, 
   Bot, 
@@ -40,11 +36,10 @@ type Message = {
 const VisaChatbot = ({ user }: { user?: User }) => {
   // State for chat messages
   const [messages, setMessages] = useState<Message[]>([]);
-  
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [streamedResponse, setStreamedResponse] = useState('');
-  const scrollAreaRef = useRef(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Initialize chat with a greeting message
   useEffect(() => {
@@ -141,7 +136,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
           temperature: 0.7,
           maxTokens: 1024
         },
-        (chunk) => {
+        (chunk: string) => {
           setStreamedResponse(prev => prev + chunk);
         },
         user?.novitaApiKey // Pass the user's API key to the function
@@ -175,11 +170,11 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         
         return updatedMessages;
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating response:', error);
       
       // Check if the error is related to API key
-      const errorMessage = error.toString();
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
         toast({
           title: 'API Key Error',
@@ -210,7 +205,8 @@ const VisaChatbot = ({ user }: { user?: User }) => {
   // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      const scrollArea = scrollAreaRef.current;
+      scrollArea.scrollTop = scrollArea.scrollHeight;
     }
   }, [messages, isTyping, streamedResponse]);
 
@@ -305,7 +301,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                       message.type === 'user' ? 'justify-end' : ''
                     }`}>
                       <span>{message.timestamp.toLocaleTimeString()}</span>
-                      {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
+                      {message.category && message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
                         <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
                           {getCategoryIcon(message.category)}
                           <span className="ml-1 capitalize">{message.category}</span>
@@ -338,9 +334,9 @@ const VisaChatbot = ({ user }: { user?: User }) => {
             <div className="flex gap-2">
               <Input
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setInputMessage(e.target.value)}
                 placeholder="Ask about visa requirements, documents, or processes..."
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendMessage()}
                 className="flex-1"
                 disabled={isTyping}
               />
