@@ -7,6 +7,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api': {
+        target: 'https://api.novita.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/v3/openai')
+      }
+    }
   },
   plugins: [
     react(),

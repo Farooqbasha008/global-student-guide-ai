@@ -3,9 +3,9 @@ import OpenAI from 'openai';
 // Initialize the OpenAI client with Novita AI's base URL
 const createNovitaClient = (apiKey: string) => {
   return new OpenAI({
-    baseURL: 'https://corsproxy.io/?url=' + encodeURIComponent('https://api.novita.ai/v3/openai'),
+    baseURL: 'https://api.novita.ai/v3/openai',
     apiKey: apiKey || import.meta.env.VITE_NOVITA_API_KEY || '',
-    dangerouslyAllowBrowser: true // Only for development, consider using a backend proxy in production
+    dangerouslyAllowBrowser: true
   });
 };
 
@@ -46,27 +46,16 @@ export const sendChatCompletion = async (
   } = options;
 
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: maxTokens,
-        temperature,
-        stream
-      })
+    const novitaClient = createNovitaClient(apiKey);
+    const response = await novitaClient.chat.completions.create({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+      stream
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch from API');
-    }
-
-    return await response.json();
+    return response;
   } catch (error) {
     console.error('Error calling Novita AI:', error);
     throw error;
@@ -94,54 +83,19 @@ export const sendStreamingChatCompletion = async (
   } = options;
 
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: maxTokens,
-        temperature,
-        stream: true
-      })
+    const novitaClient = createNovitaClient(apiKey);
+    const stream = await novitaClient.chat.completions.create({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+      stream: true
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch from API');
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('No response body');
-    }
-
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content || '';
-            if (content) {
-              onChunk(content);
-            }
-          } catch (e) {
-            console.error('Error parsing chunk:', e);
-          }
-        }
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        onChunk(content);
       }
     }
   } catch (error) {

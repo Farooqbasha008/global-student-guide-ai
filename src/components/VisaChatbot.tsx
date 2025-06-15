@@ -125,13 +125,13 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       setMessages(prev => [...prev, tempBotMessage]);
 
       // Check if user has provided an API key
-      if (!user?.novitaApiKey) {
-        // Show a warning toast if no API key is provided
+      if (!user?.novitaApiKey && !import.meta.env.VITE_NOVITA_API_KEY) {
         toast({
           title: 'API Key Missing',
-          description: 'Please add your Novita AI API key in your profile settings for enhanced AI features.',
+          description: 'Please add your Novita AI API key in your profile settings or environment variables.',
           variant: 'destructive'
         });
+        throw new Error('API key not found');
       }
 
       // Stream the response from Novita AI
@@ -144,7 +144,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         (chunk) => {
           setStreamedResponse(prev => prev + chunk);
         },
-        user?.novitaApiKey // Pass the user's API key to the function
+        user?.novitaApiKey || import.meta.env.VITE_NOVITA_API_KEY
       );
 
       // Determine message category based on content
@@ -169,7 +169,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
             ...updatedMessages[lastIndex],
             content: streamedResponse,
             category: determineCategory(streamedResponse),
-            type: 'bot' as const // Ensure type is strictly 'bot'
+            type: 'bot' as const
           };
         }
         
@@ -183,7 +183,13 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
         toast({
           title: 'API Key Error',
-          description: 'There was an issue with your Novita AI API key. Please check that it is valid in your profile settings.',
+          description: 'There was an issue with your Novita AI API key. Please check that it is valid.',
+          variant: 'destructive'
+        });
+      } else if (errorMessage.includes('CORS')) {
+        toast({
+          title: 'Connection Error',
+          description: 'Unable to connect to the AI service. Please try again later.',
           variant: 'destructive'
         });
       } else {
