@@ -14,50 +14,50 @@ const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528-qwen3-8b';
 
 // Interface for chat message
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
 // Interface for chat options
 export interface ChatOptions {
   model?: string;
-  maxTokens?: number;
   temperature?: number;
-  stream?: boolean;
+  max_tokens?: number;
 }
 
 /**
  * Send a chat completion request to Novita AI
  * @param messages Array of chat messages
  * @param options Chat options
- * @param apiKey Optional API key to use instead of the environment variable
  * @returns Promise with the chat completion response
  */
-export const sendChatCompletion = async (
+export async function sendChatCompletion(
   messages: ChatMessage[],
-  options: ChatOptions = {},
-  apiKey?: string
-) => {
-  const {
-    model = DEFAULT_MODEL,
-    maxTokens = 512,
-    temperature = 0.7,
-    stream = false
-  } = options;
-
+  options: ChatOptions = {}
+): Promise<string> {
   try {
-    const novitaClient = createNovitaClient(apiKey);
-    const response = await novitaClient.chat.completions.create({
-      model,
-      messages,
-      max_tokens: maxTokens,
-      temperature,
-      stream
+    const response = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        model: options.model || DEFAULT_MODEL,
+        temperature: options.temperature || 0.7,
+        max_tokens: options.max_tokens || 1000,
+      }),
     });
 
-    return response;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.details || 'Failed to get response from server');
+    }
+
+    const data = await response.json();
+    return data.content;
   } catch (error) {
-    console.error('Error calling Novita AI:', error);
+    console.error('Error in sendChatCompletion:', error);
     throw error;
   }
-};
+}
