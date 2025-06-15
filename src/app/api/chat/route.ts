@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+
+const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528-qwen3-8b';
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -14,45 +17,36 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, model, max_tokens, temperature, stream } = body;
-    const apiKey = process.env.NOVITA_API_KEY;
+    const { messages, model = DEFAULT_MODEL, max_tokens = 1000, temperature = 0.7 } = body;
+    const apiKey = process.env.VITE_NOVITA_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'API key not configured' },
+        { error: 'API key not configured', details: 'Please set VITE_NOVITA_API_KEY in your environment variables' },
         { status: 500 }
       );
     }
 
-    const response = await fetch('https://api.novita.ai/v3/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens,
-        temperature,
-        stream
-      })
+    const openai = new OpenAI({
+      baseURL: 'https://api.novita.ai/v3/openai',
+      apiKey: apiKey,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || 'Failed to fetch from Novita AI' },
-        { status: response.status }
-      );
-    }
+    const completion = await openai.chat.completions.create({
+      model,
+      messages,
+      max_tokens,
+      temperature,
+    });
 
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
+    return NextResponse.json(completion.choices[0].message);
+  } catch (error: any) {
     console.error('Error in chat completion:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Failed to get response from Novita AI',
+        details: error.message || 'Unknown error occurred'
+      },
       { status: 500 }
     );
   }
