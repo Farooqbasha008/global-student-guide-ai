@@ -1,73 +1,173 @@
-# Welcome to your Lovable project
+# StudyMate AI - Your AI-Powered Study Abroad Companion
 
-## Project info
+StudyMate AI is a comprehensive web application designed to assist international students with their study abroad journey. It provides personalized guidance, visa assistance, and roadmap generation using AI technology.
 
-**URL**: https://lovable.dev/projects/e5083c2a-4ac0-4da4-b014-fc781a179595
+## Features
 
-## How can I edit this code?
+### 1. Authentication System
+- Secure login and signup functionality
+- Local storage-based session management
+- User profile management
 
-There are several ways of editing your application.
+### 2. Profile Management
+- Personal information collection
+- Academic interests selection
+- Preferred countries selection
+- Budget range specification
+- English proficiency level
+- Timeline preferences
+- Novita AI API key integration
 
-**Use Lovable**
+### 3. Dashboard
+- Overview of study abroad journey
+- Quick access to key features
+- Progress tracking
+- Personalized recommendations
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e5083c2a-4ac0-4da4-b014-fc781a179595) and start prompting.
+### 4. Visa Assistant (AI Chatbot)
+- Real-time visa guidance
+- Document requirements information
+- Application process assistance
+- Interview preparation tips
+- Financial requirements guidance
+- Quick question templates
+- Document checklist
+- Streaming AI responses
+- Message categorization
+- Visual indicators for different types of information
 
-Changes made via Lovable will be committed automatically to this repo.
+### 5. Roadmap Generator
+- Personalized timeline creation
+- Task categorization
+- Priority-based task organization
+- Timeline-based task distribution
+- Customized recommendations based on:
+  - Academic interests
+  - Preferred countries
+  - Budget constraints
+  - English proficiency
+  - Application timeline
 
-**Use your preferred IDE**
+## Technical Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui Components
+- React Router DOM
+- React Query
+- OpenAI SDK
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Key Dependencies
+- @radix-ui/react-* (UI Components)
+- @tanstack/react-query (Data Fetching)
+- class-variance-authority (Styling)
+- date-fns (Date Handling)
+- lucide-react (Icons)
+- react-hook-form (Form Management)
+- zod (Schema Validation)
 
-Follow these steps:
+## Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js (v16 or higher)
+- npm (v7 or higher)
+- Novita AI API key (for enhanced AI features)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd study-mate-ai
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory:
+```env
+VITE_NOVITA_API_KEY=your_novita_api_key_here
+```
+
+4. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/         # React components
+│   ├── ui/            # Reusable UI components
+│   ├── AuthForm.tsx   # Authentication form
+│   ├── Dashboard.tsx  # Main dashboard
+│   ├── ProfileForm.tsx # User profile management
+│   ├── RoadmapGenerator.tsx # Roadmap generation
+│   └── VisaChatbot.tsx # AI-powered visa assistant
+├── lib/               # Utility functions and API clients
+│   └── novita-ai.ts   # Novita AI integration
+├── pages/             # Page components
+│   ├── Index.tsx      # Main application page
+│   └── NotFound.tsx   # 404 page
+├── hooks/             # Custom React hooks
+└── App.tsx           # Application root
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Development
 
-## What technologies are used for this project?
+### Available Scripts
 
-This project is built with:
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run build:dev` - Build for development
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview production build
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Code Style
 
-## How can I deploy this project?
+The project uses ESLint for code linting and follows TypeScript best practices. Run `npm run lint` to check for any code style issues.
 
-Simply open [Lovable](https://lovable.dev/projects/e5083c2a-4ac0-4da4-b014-fc781a179595) and click on Share -> Publish.
+## Production Deployment
 
-## Can I connect a custom domain to my Lovable project?
+For production deployment:
 
-Yes, you can!
+1. Set up a proper backend server to handle API requests
+2. Configure environment variables
+3. Build the application:
+```bash
+npm run build
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+4. Deploy the contents of the `dist` directory to your hosting service
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Security Considerations
+
+- API keys should never be exposed in client-side code
+- Implement proper authentication and authorization
+- Use environment variables for sensitive data
+- Set up CORS properly in production
+- Implement rate limiting for API requests
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support, please open an issue in the repository or contact the development team.
