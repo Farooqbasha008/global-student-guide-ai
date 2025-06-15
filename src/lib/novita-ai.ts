@@ -62,69 +62,42 @@ export const sendChatCompletion = async (
   }
 };
 
-interface ChatCompletionOptions {
-  temperature?: number;
-  maxTokens?: number;
-}
-
-export async function sendStreamingChatCompletion(
+/**
+ * Send a streaming chat completion request to Novita AI
+ * @param messages Array of chat messages
+ * @param options Chat options
+ * @param onChunk Callback function for each chunk of the stream
+ * @param apiKey Optional API key to use instead of the environment variable
+ * @returns Promise that resolves when the stream is complete
+ */
+export const sendStreamingChatCompletion = async (
   messages: ChatMessage[],
-  options: ChatCompletionOptions = {},
+  options: Omit<ChatOptions, 'stream'> = {},
   onChunk: (chunk: string) => void,
   apiKey?: string
-): Promise<void> {
+) => {
+  const {
+    model = DEFAULT_MODEL,
+    maxTokens = 512,
+    temperature = 0.7
+  } = options;
+
   try {
-    const response = await fetch('https://api.novita.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey || process.env.REACT_APP_NOVITA_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages,
-        temperature: options.temperature || 0.7,
-        max_tokens: options.maxTokens || 1024,
-        stream: true,
-      }),
+    const novitaClient = createNovitaClient(apiKey);
+    const stream = await novitaClient.chat.completions.create({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+      stream: true
     });
 
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('Failed to get response reader');
-    }
-
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content;
-            if (content) {
-              onChunk(content);
-            }
-          } catch (e) {
-            console.error('Error parsing chunk:', e);
-          }
-        }
-      }
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      onChunk(content);
     }
   } catch (error) {
-    console.error('Error in chat completion:', error);
+    console.error('Error in streaming chat completion:', error);
     throw error;
   }
-}
+};

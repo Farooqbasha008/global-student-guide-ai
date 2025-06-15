@@ -1,6 +1,0 @@
-export * from './card';
-export * from './button';
-export * from './input';
-export * from './badge';
-export * from './scroll-area';
-export * from './provider'; 
