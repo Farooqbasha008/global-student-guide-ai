@@ -46,16 +46,27 @@ export const sendChatCompletion = async (
   } = options;
 
   try {
-    const novitaClient = createNovitaClient(apiKey);
-    const response = await novitaClient.chat.completions.create({
-      model,
-      messages,
-      max_tokens: maxTokens,
-      temperature,
-      stream
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+        stream
+      })
     });
 
-    return response;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch from API');
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Error calling Novita AI:', error);
     throw error;
