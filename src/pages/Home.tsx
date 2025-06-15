@@ -1,12 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container,
   Card,
   Button,
-  Text,
-  Flex,
-  Grid,
   Badge
 } from '../components/ui';
 
@@ -56,27 +52,20 @@ const Home: React.FC = () => {
   ];
 
   return (
-    <Container>
+    <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
-      <Card style={{ marginBottom: '2rem' }}>
-        <Flex
-          direction="column"
-          align="center"
-          style={{ textAlign: 'center', padding: '4rem 2rem' }}
-        >
-          <Text variant="h1" style={{ marginBottom: '1rem' }}>
+      <Card className="mb-8">
+        <div className="text-center p-8">
+          <h1 className="text-4xl font-bold mb-4">
             Your Global Student Journey Starts Here
-          </Text>
-          <Text
-            variant="body"
-            style={{ maxWidth: '600px', marginBottom: '2rem' }}
-          >
+          </h1>
+          <p className="text-lg mb-8 max-w-2xl mx-auto">
             Get personalized guidance for studying abroad, visa applications, and
             academic planning with our AI-powered platform.
-          </Text>
-          <Flex gap="md">
+          </p>
+          <div className="flex gap-4 justify-center">
             <Button
-              variant="primary"
+              variant="default"
               onClick={() => navigate('/chat')}
             >
               Start Chatting
@@ -87,73 +76,66 @@ const Home: React.FC = () => {
             >
               Create Roadmap
             </Button>
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       </Card>
 
       {/* Features Section */}
-      <Text variant="h2" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+      <h2 className="text-3xl font-bold text-center mb-8">
         Features
-      </Text>
-      <Grid columns={3} gap="lg" style={{ marginBottom: '4rem' }}>
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         {features.map(feature => (
-          <Card key={feature.title}>
-            <Flex direction="column" align="center" gap="md">
-              <Text style={{ fontSize: '3rem' }}>{feature.icon}</Text>
-              <Text variant="h3">{feature.title}</Text>
-              <Text style={{ textAlign: 'center' }}>{feature.description}</Text>
-            </Flex>
+          <Card key={feature.title} className="p-6">
+            <div className="flex flex-col items-center gap-4">
+              <span className="text-5xl">{feature.icon}</span>
+              <h3 className="text-xl font-semibold">{feature.title}</h3>
+              <p className="text-center">{feature.description}</p>
+            </div>
           </Card>
         ))}
-      </Grid>
+      </div>
 
       {/* Testimonials Section */}
-      <Text variant="h2" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+      <h2 className="text-3xl font-bold text-center mb-8">
         What Our Users Say
-      </Text>
-      <Grid columns={3} gap="lg" style={{ marginBottom: '4rem' }}>
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         {testimonials.map(testimonial => (
-          <Card key={testimonial.name}>
-            <Flex direction="column" gap="md">
-              <Text style={{ fontSize: '1.5rem' }}>"{testimonial.text}"</Text>
-              <Flex direction="column" gap="xs">
-                <Text variant="h3">{testimonial.name}</Text>
-                <Flex gap="sm" align="center">
-                  <Badge variant="info">{testimonial.role}</Badge>
-                  <Text variant="caption">{testimonial.country}</Text>
-                </Flex>
-              </Flex>
-            </Flex>
+          <Card key={testimonial.name} className="p-6">
+            <div className="flex flex-col gap-4">
+              <p className="text-lg">"{testimonial.text}"</p>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-xl font-semibold">{testimonial.name}</h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{testimonial.role}</Badge>
+                  <span className="text-sm text-gray-600">{testimonial.country}</span>
+                </div>
+              </div>
+            </div>
           </Card>
         ))}
-      </Grid>
+      </div>
 
       {/* Call to Action */}
-      <Card style={{ marginBottom: '2rem' }}>
-        <Flex
-          direction="column"
-          align="center"
-          style={{ textAlign: 'center', padding: '4rem 2rem' }}
-        >
-          <Text variant="h2" style={{ marginBottom: '1rem' }}>
+      <Card className="mb-8">
+        <div className="text-center p-8">
+          <h2 className="text-3xl font-bold mb-4">
             Ready to Start Your Journey?
-          </Text>
-          <Text
-            variant="body"
-            style={{ maxWidth: '600px', marginBottom: '2rem' }}
-          >
+          </h2>
+          <p className="text-lg mb-8 max-w-2xl mx-auto">
             Join thousands of students who have successfully navigated their
             international education journey with our platform.
-          </Text>
+          </p>
           <Button
-            variant="primary"
+            variant="default"
             onClick={() => navigate('/signup')}
           >
             Get Started Now
           </Button>
-        </Flex>
+        </div>
       </Card>
-    </Container>
+    </div>
   );
 };
 
