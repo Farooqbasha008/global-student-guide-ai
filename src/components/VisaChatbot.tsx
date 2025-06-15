@@ -13,10 +13,12 @@ import {
   KeyRound
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
-import { sendStreamingChatCompletion, ChatMessage } from '@/lib/novita-ai';
+import { sendStreamingChatCompletion, ChatMessage as AIChatMessage } from '@/lib/novita-ai';
+import { db, ChatMessage } from '@/lib/supabase';
 
 // Add a proper interface for the user prop
 interface User {
+  id: string;
   name?: string;
   preferredCountries?: string[];
   academicInterests?: string[];
@@ -26,7 +28,7 @@ interface User {
 
 // Define message type
 type Message = {
-  id: number;
+  id: string;
   type: 'user' | 'bot';
   content: string;
   timestamp: Date;
@@ -39,19 +41,49 @@ const VisaChatbot = ({ user }: { user?: User }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [streamedResponse, setStreamedResponse] = useState('');
+  const [tempMessageId, setTempMessageId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Initialize chat with a greeting message
+  // Load chat history from Supabase
   useEffect(() => {
-    const initialMessage: Message = {
-      id: 1,
-      type: 'bot',
-      content: `Hello ${user?.name || 'there'}! I'm your visa assistant. I can help you with visa requirements, documentation, and application processes for ${user?.preferredCountries?.join(', ') || 'your preferred countries'}. What would you like to know?`,
-      timestamp: new Date(),
-      category: 'greeting'
-    };
-    setMessages([initialMessage]);
-  }, [user]);
+    if (user?.id) {
+      const loadChatHistory = async () => {
+        try {
+          const chatHistory = await db.getChatHistory(user.id);
+          const formattedMessages = chatHistory.map(msg => ({
+            id: msg.id,
+            type: msg.type,
+            content: msg.content,
+            timestamp: new Date(msg.created_at),
+            category: msg.category
+          }));
+          setMessages(formattedMessages);
+        } catch (error) {
+          console.error('Error loading chat history:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load chat history. Please try again.',
+            variant: 'destructive'
+          });
+        }
+      };
+      loadChatHistory();
+    }
+  }, [user?.id]);
+
+  // Initialize chat with a greeting message if no history
+  useEffect(() => {
+    if (user?.id && messages.length === 0) {
+      const initialMessage: Message = {
+        id: 'greeting',
+        type: 'bot',
+        content: `Hello ${user?.name || 'there'}! I'm your visa assistant. I can help you with visa requirements, documentation, and application processes for ${user?.preferredCountries?.join(', ') || 'your preferred countries'}. What would you like to know?`,
+        timestamp: new Date(),
+        category: 'greeting'
+      };
+      setMessages([initialMessage]);
+    }
+  }, [user, messages.length]);
 
   // Quick questions for the user to select
   const quickQuestions = [
@@ -65,11 +97,11 @@ const VisaChatbot = ({ user }: { user?: User }) => {
 
   // Function to handle sending a message
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || !user?.id) return;
 
     // Add user message to the chat
     const userMessage: Message = {
-      id: messages.length + 1,
+      id: Date.now().toString(),
       type: 'user',
       content: inputMessage,
       timestamp: new Date(),
@@ -82,8 +114,16 @@ const VisaChatbot = ({ user }: { user?: User }) => {
     setStreamedResponse('');
 
     try {
+      // Save user message to Supabase
+      await db.saveChatMessage({
+        user_id: user.id,
+        type: 'user',
+        content: inputMessage,
+        category: 'user'
+      });
+
       // Prepare conversation history for the AI
-      const conversationHistory: ChatMessage[] = [
+      const conversationHistory: AIChatMessage[] = [
         {
           role: 'system',
           content: `You are an AI visa assistant for international students. 
@@ -109,8 +149,11 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       conversationHistory.push({ role: 'user', content: inputMessage });
 
       // Create a temporary bot message for streaming
+      const newTempMessageId = Date.now().toString();
+      setTempMessageId(newTempMessageId);
+      
       const tempBotMessage: Message = {
-        id: messages.length + 2,
+        id: newTempMessageId,
         type: 'bot',
         content: '',
         timestamp: new Date(),
@@ -119,57 +162,95 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       
       setMessages(prev => [...prev, tempBotMessage]);
 
-      // Check if user has provided an API key
-      if (!user?.novitaApiKey) {
-        // Show a warning toast if no API key is provided
-        toast({
-          title: 'API Key Missing',
-          description: 'Please add your Novita AI API key in your profile settings for enhanced AI features.',
-          variant: 'destructive'
-        });
-      }
-
-      // Stream the response from Novita AI
-      await sendStreamingChatCompletion(
-        conversationHistory,
-        {
-          temperature: 0.7,
-          maxTokens: 1024
-        },
-        (chunk: string) => {
-          setStreamedResponse(prev => prev + chunk);
-        },
-        user?.novitaApiKey // Pass the user's API key to the function
-      );
-
-      // Determine message category based on content
-      const determineCategory = (content: string): string => {
-        const lowerContent = content.toLowerCase();
-        if (lowerContent.includes('document') || lowerContent.includes('requirement')) return 'documents';
-        if (lowerContent.includes('interview')) return 'interview';
-        if (lowerContent.includes('financial') || lowerContent.includes('money') || lowerContent.includes('fund')) return 'financial';
-        if (lowerContent.includes('reject') || lowerContent.includes('denied')) return 'rejection';
-        if (lowerContent.includes('work') || lowerContent.includes('job')) return 'work';
-        if (lowerContent.includes('timeline') || lowerContent.includes('time') || lowerContent.includes('when')) return 'timeline';
-        return 'general';
-      };
-
-      // Update the bot message with the complete response
-      setMessages(prev => {
-        const updatedMessages = [...prev];
-        const lastIndex = updatedMessages.length - 1;
-        
-        if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
-          updatedMessages[lastIndex] = {
-            ...updatedMessages[lastIndex],
-            content: streamedResponse,
-            category: determineCategory(streamedResponse),
-            type: 'bot' as const // Ensure type is strictly 'bot'
-          };
+      try {
+        // Check if user has provided an API key
+        if (!user?.novitaApiKey) {
+          // Show a warning toast if no API key is provided
+          toast({
+            title: 'API Key Missing',
+            description: 'Please add your Novita AI API key in your profile settings for enhanced AI features.',
+            variant: 'destructive'
+          });
         }
+
+        // Stream the response from Novita AI
+        await sendStreamingChatCompletion(
+          conversationHistory,
+          {
+            temperature: 0.7,
+            maxTokens: 1024
+          },
+          (chunk: string) => {
+            setStreamedResponse(prev => prev + chunk);
+          },
+          user?.novitaApiKey // Pass the user's API key to the function
+        );
+
+        // Determine message category based on content
+        const determineCategory = (content: string): string => {
+          const lowerContent = content.toLowerCase();
+          if (lowerContent.includes('document') || lowerContent.includes('requirement')) return 'documents';
+          if (lowerContent.includes('interview')) return 'interview';
+          if (lowerContent.includes('financial') || lowerContent.includes('money') || lowerContent.includes('fund')) return 'financial';
+          if (lowerContent.includes('reject') || lowerContent.includes('denied')) return 'rejection';
+          if (lowerContent.includes('work') || lowerContent.includes('job')) return 'work';
+          if (lowerContent.includes('timeline') || lowerContent.includes('time') || lowerContent.includes('when')) return 'timeline';
+          return 'general';
+        };
+
+        const category = determineCategory(streamedResponse);
+
+        // Save bot message to Supabase
+        await db.saveChatMessage({
+          user_id: user.id,
+          type: 'bot',
+          content: streamedResponse,
+          category
+        });
+
+        // Update the bot message with the complete response
+        setMessages(prev => {
+          const updatedMessages = [...prev];
+          const lastIndex = updatedMessages.length - 1;
+          
+          if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
+            updatedMessages[lastIndex] = {
+              ...updatedMessages[lastIndex],
+              content: streamedResponse,
+              category,
+              type: 'bot' as const // Ensure type is strictly 'bot'
+            };
+          }
+          
+          return updatedMessages;
+        });
+      } catch (error: unknown) {
+        console.error('Error generating response:', error);
         
-        return updatedMessages;
-      });
+        // Check if the error is related to API key
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
+          toast({
+            title: 'API Key Error',
+            description: 'There was an issue with your Novita AI API key. Please check that it is valid in your profile settings.',
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to generate a response. Please try again.',
+            variant: 'destructive'
+          });
+        }
+
+        // Remove the temporary bot message if there was an error
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
+        setTempMessageId(null);
+      } finally {
+        setIsTyping(false);
+        setStreamedResponse('');
+        setTempMessageId(null);
+      }
     } catch (error: unknown) {
       console.error('Error generating response:', error);
       
@@ -190,10 +271,8 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       }
 
       // Remove the temporary bot message if there was an error
-      setMessages(prev => prev.filter(msg => msg.content !== ''));
-    } finally {
-      setIsTyping(false);
-      setStreamedResponse('');
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
+      setTempMessageId(null);
     }
   };
 
@@ -292,7 +371,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                           <span>Generating response...</span>
                         </div>
                       )}
-                      {message.type === 'bot' && message.id === messages.length && streamedResponse && (
+                      {message.type === 'bot' && message.id === tempMessageId && streamedResponse && (
                         <p className="whitespace-pre-line text-sm">{streamedResponse}</p>
                       )}
                     </div>
