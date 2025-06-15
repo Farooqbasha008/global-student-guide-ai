@@ -17,7 +17,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
-import { sendStreamingChatCompletion, ChatMessage } from '@/lib/novita-ai';
+import { sendChatCompletion, ChatMessage } from '@/lib/novita-ai';
 
 // Add a proper interface for the user prop
 interface User {
@@ -43,7 +43,6 @@ const VisaChatbot = ({ user }: { user?: User }) => {
   
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [streamedResponse, setStreamedResponse] = useState('');
   const scrollAreaRef = useRef(null);
 
   // Initialize chat with a greeting message
@@ -84,7 +83,6 @@ const VisaChatbot = ({ user }: { user?: User }) => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
-    setStreamedResponse('');
 
     try {
       // Prepare conversation history for the AI
@@ -113,11 +111,11 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       // Add the current user message
       conversationHistory.push({ role: 'user', content: inputMessage });
 
-      // Create a temporary bot message for streaming
+      // Create a temporary bot message
       const tempBotMessage: Message = {
         id: messages.length + 2,
         type: 'bot',
-        content: '',
+        content: 'Thinking...',
         timestamp: new Date(),
         category: 'processing'
       };
@@ -134,15 +132,13 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         throw new Error('API key not found');
       }
 
-      // Stream the response from Novita AI
-      await sendStreamingChatCompletion(
+      // Get the response from Novita AI
+      const response = await sendChatCompletion(
         conversationHistory,
         {
           temperature: 0.7,
-          maxTokens: 1024
-        },
-        (chunk) => {
-          setStreamedResponse(prev => prev + chunk);
+          maxTokens: 1024,
+          stream: false
         },
         user?.novitaApiKey || import.meta.env.VITE_NOVITA_API_KEY
       );
@@ -159,7 +155,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         return 'general';
       };
 
-      // Update the bot message with the complete response
+      // Update the bot message with the response
       setMessages(prev => {
         const updatedMessages = [...prev];
         const lastIndex = updatedMessages.length - 1;
@@ -167,8 +163,8 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
           updatedMessages[lastIndex] = {
             ...updatedMessages[lastIndex],
-            content: streamedResponse,
-            category: determineCategory(streamedResponse),
+            content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
+            category: determineCategory(response.choices[0]?.message?.content || ''),
             type: 'bot' as const
           };
         }
@@ -201,10 +197,9 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       }
 
       // Remove the temporary bot message if there was an error
-      setMessages(prev => prev.filter(msg => msg.content !== ''));
+      setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
     } finally {
       setIsTyping(false);
-      setStreamedResponse('');
     }
   };
 
@@ -218,7 +213,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages, isTyping, streamedResponse]);
+  }, [messages, isTyping]);
 
   // Get icon for message category
   const getCategoryIcon = (category: string) => {
@@ -302,9 +297,6 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                           <span>Generating response...</span>
                         </div>
                       )}
-                      {message.type === 'bot' && message.id === messages.length && streamedResponse && (
-                        <p className="whitespace-pre-line text-sm">{streamedResponse}</p>
-                      )}
                     </div>
                     
                     <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
@@ -322,7 +314,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                 </div>
               ))}
               
-              {isTyping && !streamedResponse && (
+              {isTyping && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center">
                     <Bot className="h-4 w-4" />
