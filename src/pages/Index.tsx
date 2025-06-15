@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -116,7 +115,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="visa-chat" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Visa Assistant
+              Chatbot Assistant
             </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />

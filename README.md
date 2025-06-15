@@ -24,7 +24,7 @@ StudyMate AI is a comprehensive web application designed to assist international
 - Progress tracking
 - Personalized recommendations
 
-### 4. Visa Assistant (AI Chatbot)
+### 4. Chatbot Assistant (AI Chatbot)
 - Real-time visa guidance
 - Document requirements information
 - Application process assistance

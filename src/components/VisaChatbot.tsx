@@ -245,7 +245,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-blue-600" />
-            Visa Assistant
+            Chatbot Assistant
             {!user?.novitaApiKey && (
               <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
                 <KeyRound className="h-3 w-3" />
