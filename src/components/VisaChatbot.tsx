@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,46 +12,53 @@ import {
   Clock, 
   AlertCircle,
   CheckCircle,
-  Paperclip
+  Paperclip,
+  Loader2,
+  KeyRound
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
+import { sendStreamingChatCompletion, ChatMessage } from '@/lib/novita-ai';
 
-const VisaChatbot = ({ user }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'bot',
-      content: `Hello ${user?.name}! I'm your visa assistant. I can help you with visa requirements, documentation, and application processes for ${user?.preferredCountries?.join(', ') || 'your preferred countries'}. What would you like to know?`,
-      timestamp: new Date(),
-      category: 'greeting'
-    }
-  ]);
+// Add a proper interface for the user prop
+interface User {
+  name?: string;
+  preferredCountries?: string[];
+  academicInterests?: string[];
+  budget?: string;
+  novitaApiKey?: string;
+}
+
+// Define message type
+type Message = {
+  id: number;
+  type: 'user' | 'bot';
+  content: string;
+  timestamp: Date;
+  category?: string;
+};
+
+const VisaChatbot = ({ user }: { user?: User }) => {
+  // State for chat messages
+  const [messages, setMessages] = useState<Message[]>([]);
+  
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [streamedResponse, setStreamedResponse] = useState('');
   const scrollAreaRef = useRef(null);
 
-  // Mock knowledge base for RAG-style responses
-  const knowledgeBase = {
-    'usa-visa': {
-      requirements: ['Valid passport', 'I-20 form from university', 'SEVIS fee payment', 'DS-160 form', 'Visa interview appointment'],
-      documents: ['Academic transcripts', 'Financial documentation', 'Bank statements', 'Sponsor affidavit'],
-      timeline: '2-4 months before travel',
-      tips: ['Prepare for visa interview', 'Show strong ties to home country', 'Demonstrate financial stability']
-    },
-    'canada-visa': {
-      requirements: ['Valid passport', 'Letter of acceptance', 'Proof of financial support', 'Medical exam', 'Police clearance'],
-      documents: ['Academic records', 'Language test results', 'Statement of purpose', 'Financial statements'],
-      timeline: '1-3 months processing time',
-      tips: ['Apply online through IRCC', 'Provide biometrics', 'Show intent to leave Canada after studies']
-    },
-    'uk-visa': {
-      requirements: ['CAS from university', 'Valid passport', 'TB test results', 'Financial evidence', 'English proficiency'],
-      documents: ['Academic qualifications', 'ATAS certificate (if required)', 'Financial documents', 'Maintenance funds'],
-      timeline: '3 weeks for standard processing',
-      tips: ['Use gov.uk official website', 'Provide accurate information', 'Keep all original documents']
-    }
-  };
+  // Initialize chat with a greeting message
+  useEffect(() => {
+    const initialMessage: Message = {
+      id: 1,
+      type: 'bot',
+      content: `Hello ${user?.name || 'there'}! I'm your visa assistant. I can help you with visa requirements, documentation, and application processes for ${user?.preferredCountries?.join(', ') || 'your preferred countries'}. What would you like to know?`,
+      timestamp: new Date(),
+      category: 'greeting'
+    };
+    setMessages([initialMessage]);
+  }, [user]);
 
+  // Quick questions for the user to select
   const quickQuestions = [
     "What documents do I need for a US student visa?",
     "How long does visa processing take?",
@@ -62,46 +68,12 @@ const VisaChatbot = ({ user }) => {
     "What if my visa gets rejected?"
   ];
 
-  const generateBotResponse = (userMessage) => {
-    const message = userMessage.toLowerCase();
-    let response = "";
-    let category = "general";
-
-    // Simple keyword matching for demo purposes
-    if (message.includes('document') || message.includes('requirement')) {
-      const country = user?.preferredCountries?.[0]?.toLowerCase() || 'usa';
-      const countryKey = `${country.replace(' ', '-')}-visa`;
-      const info = knowledgeBase[countryKey] || knowledgeBase['usa-visa'];
-      
-      response = `For ${country.toUpperCase()} student visa, you'll need:\n\n${info.requirements.map(req => `• ${req}`).join('\n')}\n\nRequired documents:\n${info.documents.map(doc => `• ${doc}`).join('\n')}\n\nProcessing timeline: ${info.timeline}`;
-      category = "documents";
-    } else if (message.includes('interview')) {
-      response = `Here are key tips for your visa interview:\n\n• Be honest and confident\n• Explain your study plans clearly\n• Show financial stability\n• Demonstrate ties to your home country\n• Practice common questions\n• Dress professionally\n• Arrive early with all documents\n\nWould you like specific interview questions to practice?`;
-      category = "interview";
-    } else if (message.includes('financial') || message.includes('money') || message.includes('fund')) {
-      response = `Financial requirements vary by country and program:\n\n• Tuition fees (varies by university)\n• Living expenses (${user?.budget || '$20,000-$50,000'} annually)\n• Bank statements (3-6 months)\n• Sponsor affidavit (if applicable)\n• Scholarship documents (if any)\n\nTip: Maintain consistent bank balance and avoid large deposits just before application.`;
-      category = "financial";
-    } else if (message.includes('reject') || message.includes('denied') || message.includes('refuse')) {
-      response = `If your visa application is rejected:\n\n• Review the rejection reason carefully\n• Address specific concerns mentioned\n• Gather additional supporting documents\n• Consider reapplying after strengthening your case\n• Consult with an immigration lawyer if needed\n\nCommon rejection reasons: Insufficient funds, weak ties to home country, incomplete documentation, or inconsistent information.`;
-      category = "rejection";
-    } else if (message.includes('work') || message.includes('job')) {
-      response = `Work permissions for international students:\n\n• USA: 20 hours/week on-campus, OPT after graduation\n• Canada: 20 hours/week off-campus with study permit\n• UK: 20 hours/week during studies, graduate route available\n• Australia: Unlimited hours during breaks, 48 hours/fortnight during studies\n\nAlways check specific work conditions on your visa!`;
-      category = "work";
-    } else if (message.includes('timeline') || message.includes('time') || message.includes('when')) {
-      response = `Visa application timeline:\n\n• Start 3-4 months before travel\n• Document preparation: 2-4 weeks\n• Application submission: 1 week\n• Processing time: 2-8 weeks (varies by country)\n• Interview scheduling: 1-4 weeks wait time\n\nApply early to avoid delays! Some countries have peak seasons with longer processing times.`;
-      category = "timeline";
-    } else {
-      response = `I understand you're asking about "${userMessage}". Let me help you with that.\n\nFor specific visa guidance, I can assist with:\n• Document requirements\n• Application processes\n• Interview preparation\n• Financial requirements\n• Timeline planning\n\nCould you be more specific about what aspect you'd like to know more about?`;
-      category = "general";
-    }
-
-    return { content: response, category };
-  };
-
+  // Function to handle sending a message
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
-    const userMessage = {
+    // Add user message to the chat
+    const userMessage: Message = {
       id: messages.length + 1,
       type: 'user',
       content: inputMessage,
@@ -112,34 +84,138 @@ const VisaChatbot = ({ user }) => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
+    setStreamedResponse('');
 
-    // Simulate typing delay
-    setTimeout(() => {
-      const botResponse = generateBotResponse(inputMessage);
-      const botMessage = {
+    try {
+      // Prepare conversation history for the AI
+      const conversationHistory: ChatMessage[] = [
+        {
+          role: 'system',
+          content: `You are an AI visa assistant for international students. 
+          The user's name is ${user?.name || 'Unknown'} and they are interested in studying in ${user?.preferredCountries?.join(', ') || 'various countries'}. 
+          Their academic interests are ${user?.academicInterests?.join(', ') || 'not specified'}. 
+          Their budget is ${user?.budget || 'not specified'}. 
+          Provide helpful, accurate information about visa requirements, application processes, documentation, interviews, and other related topics. 
+          Be conversational but professional. Keep responses concise but informative.`
+        }
+      ];
+
+      // Add previous messages to maintain conversation context (limit to last 10 messages)
+      const recentMessages = messages.slice(-10);
+      recentMessages.forEach(msg => {
+        if (msg.type === 'user') {
+          conversationHistory.push({ role: 'user', content: msg.content });
+        } else if (msg.type === 'bot' && msg.category !== 'greeting') {
+          conversationHistory.push({ role: 'assistant', content: msg.content });
+        }
+      });
+
+      // Add the current user message
+      conversationHistory.push({ role: 'user', content: inputMessage });
+
+      // Create a temporary bot message for streaming
+      const tempBotMessage: Message = {
         id: messages.length + 2,
         type: 'bot',
-        content: botResponse.content,
+        content: '',
         timestamp: new Date(),
-        category: botResponse.category
+        category: 'processing'
+      };
+      
+      setMessages(prev => [...prev, tempBotMessage]);
+
+      // Check if user has provided an API key
+      if (!user?.novitaApiKey) {
+        // Show a warning toast if no API key is provided
+        toast({
+          title: 'API Key Missing',
+          description: 'Please add your Novita AI API key in your profile settings for enhanced AI features.',
+          variant: 'destructive'
+        });
+      }
+
+      // Stream the response from Novita AI
+      await sendStreamingChatCompletion(
+        conversationHistory,
+        {
+          temperature: 0.7,
+          maxTokens: 1024
+        },
+        (chunk) => {
+          setStreamedResponse(prev => prev + chunk);
+        },
+        user?.novitaApiKey // Pass the user's API key to the function
+      );
+
+      // Determine message category based on content
+      const determineCategory = (content: string): string => {
+        const lowerContent = content.toLowerCase();
+        if (lowerContent.includes('document') || lowerContent.includes('requirement')) return 'documents';
+        if (lowerContent.includes('interview')) return 'interview';
+        if (lowerContent.includes('financial') || lowerContent.includes('money') || lowerContent.includes('fund')) return 'financial';
+        if (lowerContent.includes('reject') || lowerContent.includes('denied')) return 'rejection';
+        if (lowerContent.includes('work') || lowerContent.includes('job')) return 'work';
+        if (lowerContent.includes('timeline') || lowerContent.includes('time') || lowerContent.includes('when')) return 'timeline';
+        return 'general';
       };
 
-      setMessages(prev => [...prev, botMessage]);
+      // Update the bot message with the complete response
+      setMessages(prev => {
+        const updatedMessages = [...prev];
+        const lastIndex = updatedMessages.length - 1;
+        
+        if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
+          updatedMessages[lastIndex] = {
+            ...updatedMessages[lastIndex],
+            content: streamedResponse,
+            category: determineCategory(streamedResponse),
+            type: 'bot' as const // Ensure type is strictly 'bot'
+          };
+        }
+        
+        return updatedMessages;
+      });
+    } catch (error) {
+      console.error('Error generating response:', error);
+      
+      // Check if the error is related to API key
+      const errorMessage = error.toString();
+      if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
+        toast({
+          title: 'API Key Error',
+          description: 'There was an issue with your Novita AI API key. Please check that it is valid in your profile settings.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to generate a response. Please try again.',
+          variant: 'destructive'
+        });
+      }
+
+      // Remove the temporary bot message if there was an error
+      setMessages(prev => prev.filter(msg => msg.content !== ''));
+    } finally {
       setIsTyping(false);
-    }, 1500);
+      setStreamedResponse('');
+    }
   };
 
-  const handleQuickQuestion = (question) => {
+  // Function to handle quick question selection
+  const handleQuickQuestion = (question: string) => {
     setInputMessage(question);
   };
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, streamedResponse]);
 
-  const getCategoryIcon = (category) => {
+  // Get icon for message category
+  const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'documents': return <FileText className="h-4 w-4" />;
       case 'interview': return <User className="h-4 w-4" />;
@@ -150,7 +226,8 @@ const VisaChatbot = ({ user }) => {
     }
   };
 
-  const getCategoryColor = (category) => {
+  // Get color for message category
+  const getCategoryColor = (category: string) => {
     switch (category) {
       case 'documents': return 'bg-blue-100 text-blue-800';
       case 'interview': return 'bg-green-100 text-green-800';
@@ -169,9 +246,20 @@ const VisaChatbot = ({ user }) => {
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-blue-600" />
             Visa Assistant
+            {!user?.novitaApiKey && (
+              <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
+                <KeyRound className="h-3 w-3" />
+                API Key Missing
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
             Get instant help with visa requirements and documentation
+            {!user?.novitaApiKey && (
+              <span className="block text-xs mt-1 text-amber-600">
+                Add your Novita AI API key in profile settings for enhanced responses
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         
@@ -200,14 +288,24 @@ const VisaChatbot = ({ user }) => {
                         ? 'bg-blue-600 text-white ml-auto'
                         : 'bg-gray-100 text-gray-900'
                     }`}>
-                      <p className="whitespace-pre-line text-sm">{message.content}</p>
+                      {message.content ? (
+                        <p className="whitespace-pre-line text-sm">{message.content}</p>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Generating response...</span>
+                        </div>
+                      )}
+                      {message.type === 'bot' && message.id === messages.length && streamedResponse && (
+                        <p className="whitespace-pre-line text-sm">{streamedResponse}</p>
+                      )}
                     </div>
                     
                     <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
                       message.type === 'user' ? 'justify-end' : ''
                     }`}>
                       <span>{message.timestamp.toLocaleTimeString()}</span>
-                      {message.category !== 'user' && message.category !== 'greeting' && (
+                      {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
                         <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
                           {getCategoryIcon(message.category)}
                           <span className="ml-1 capitalize">{message.category}</span>
@@ -218,7 +316,7 @@ const VisaChatbot = ({ user }) => {
                 </div>
               ))}
               
-              {isTyping && (
+              {isTyping && !streamedResponse && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center">
                     <Bot className="h-4 w-4" />
@@ -242,11 +340,19 @@ const VisaChatbot = ({ user }) => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Ask about visa requirements, documents, or processes..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 className="flex-1"
+                disabled={isTyping}
               />
-              <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isTyping}>
-                <Send className="h-4 w-4" />
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={!inputMessage.trim() || isTyping}
+              >
+                {isTyping ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -267,6 +373,7 @@ const VisaChatbot = ({ user }) => {
                 variant="outline"
                 className="justify-start text-left h-auto p-3"
                 onClick={() => handleQuickQuestion(question)}
+                disabled={isTyping}
               >
                 {question}
               </Button>

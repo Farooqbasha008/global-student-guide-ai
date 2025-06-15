@@ -17,6 +17,7 @@ interface ProfileData {
   timeline?: string;
   name?: string;
   email?: string;
+  novitaApiKey?: string;
 }
 
 interface ProfileFormProps {
@@ -34,6 +35,7 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFo
     workExperience: initialData.workExperience || '0',
     englishProficiency: initialData.englishProficiency || '',
     timeline: initialData.timeline || '',
+    novitaApiKey: initialData.novitaApiKey || '',
     ...initialData
   });
 
@@ -190,6 +192,18 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFo
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="novitaApiKey">Novita AI API Key (Optional)</Label>
+            <Input
+              id="novitaApiKey"
+              type="password"
+              placeholder="Enter your Novita AI API key"
+              value={formData.novitaApiKey || ''}
+              onChange={(e) => setFormData({...formData, novitaApiKey: e.target.value})}
+            />
+            <p className="text-xs text-gray-500">Your API key is stored locally and used for enhanced AI features.</p>
           </div>
 
           <Button type="submit" className="w-full">
