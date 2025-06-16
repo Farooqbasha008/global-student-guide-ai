@@ -33,13 +33,15 @@ export interface ChatOptions {
  */
 export async function sendChatCompletion(
   messages: ChatMessage[],
-  options: ChatOptions = {}
-): Promise<string> {
+  options: ChatOptions = {},
+  apiKey?: string
+): Promise<any> {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey || import.meta.env.VITE_NOVITA_API_KEY || ''}`
       },
       body: JSON.stringify({
         messages,
@@ -55,7 +57,7 @@ export async function sendChatCompletion(
     }
 
     const data = await response.json();
-    return data.content;
+    return data;
   } catch (error) {
     console.error('Error in sendChatCompletion:', error);
     throw error;

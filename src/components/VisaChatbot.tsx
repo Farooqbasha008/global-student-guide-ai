@@ -14,10 +14,13 @@ import {
   CheckCircle,
   Paperclip,
   Loader2,
-  KeyRound
+  KeyRound,
+  Settings
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 import { sendChatCompletion, ChatMessage } from '@/lib/novita-ai';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // Add a proper interface for the user prop
 interface User {
@@ -40,22 +43,24 @@ type Message = {
 const VisaChatbot = ({ user }: { user?: User }) => {
   // State for chat messages
   const [messages, setMessages] = useState<Message[]>([]);
-  
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
   const scrollAreaRef = useRef(null);
 
   // Initialize chat with a greeting message
   useEffect(() => {
-    const initialMessage: Message = {
-      id: 1,
-      type: 'bot',
-      content: `Hello ${user?.name || 'there'}! I'm your visa assistant. I can help you with visa requirements, documentation, and application processes for ${user?.preferredCountries?.join(', ') || 'your preferred countries'}. What would you like to know?`,
-      timestamp: new Date(),
-      category: 'greeting'
-    };
-    setMessages([initialMessage]);
-  }, [user]);
+    if (messages.length === 0) {
+      const greetingMessage: Message = {
+        id: 1,
+        type: 'bot',
+        content: `Hello ${user?.name || 'there'}! 👋 I'm your study abroad assistant. I'm here to help you with everything about studying abroad - from choosing universities and courses to visa requirements, accommodation, scholarships, and student life${user?.preferredCountries?.length ? ` in ${user.preferredCountries.join(', ')}` : ''}. What would you like to know?`,
+        timestamp: new Date(),
+        category: 'greeting'
+      };
+      setMessages([greetingMessage]);
+    }
+  }, [messages.length, user?.name, user?.preferredCountries]);
 
   // Quick questions for the user to select
   const quickQuestions = [
@@ -111,16 +116,17 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       // Add the current user message
       conversationHistory.push({ role: 'user', content: inputMessage });
 
-      // Create a temporary bot message
-      const tempBotMessage: Message = {
-        id: messages.length + 2,
-        type: 'bot',
-        content: 'Thinking...',
-        timestamp: new Date(),
-        category: 'processing'
-      };
-      
-      setMessages(prev => [...prev, tempBotMessage]);
+      // Only add thinking message if showThinking is true
+      if (showThinking) {
+        const tempBotMessage: Message = {
+          id: messages.length + 2,
+          type: 'bot',
+          content: 'Thinking...',
+          timestamp: new Date(),
+          category: 'processing'
+        };
+        setMessages(prev => [...prev, tempBotMessage]);
+      }
 
       // Check if user has provided an API key
       if (!user?.novitaApiKey && !import.meta.env.VITE_NOVITA_API_KEY) {
@@ -137,8 +143,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         conversationHistory,
         {
           temperature: 0.7,
-          maxTokens: 1024,
-          stream: false
+          max_tokens: 1024
         },
         user?.novitaApiKey || import.meta.env.VITE_NOVITA_API_KEY
       );
@@ -155,21 +160,34 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         return 'general';
       };
 
-      // Update the bot message with the response
+      // Update messages based on showThinking state
       setMessages(prev => {
-        const updatedMessages = [...prev];
-        const lastIndex = updatedMessages.length - 1;
-        
-        if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
-          updatedMessages[lastIndex] = {
-            ...updatedMessages[lastIndex],
-            content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
-            category: determineCategory(response.choices[0]?.message?.content || ''),
-            type: 'bot' as const
-          };
+        if (showThinking) {
+          // If showing thinking state, update the last message
+          const updatedMessages = [...prev];
+          const lastIndex = updatedMessages.length - 1;
+          if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
+            updatedMessages[lastIndex] = {
+              ...updatedMessages[lastIndex],
+              content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
+              category: determineCategory(response.choices[0]?.message?.content || ''),
+              type: 'bot' as const
+            };
+          }
+          return updatedMessages;
+        } else {
+          // If not showing thinking state, add a new message
+          return [
+            ...prev,
+            {
+              id: prev.length + 1,
+              type: 'bot',
+              content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
+              timestamp: new Date(),
+              category: determineCategory(response.choices[0]?.message?.content || '')
+            }
+          ];
         }
-        
-        return updatedMessages;
       });
     } catch (error) {
       console.error('Error generating response:', error);
@@ -196,8 +214,10 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         });
       }
 
-      // Remove the temporary bot message if there was an error
-      setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      // Remove the temporary bot message if there was an error and thinking state is shown
+      if (showThinking) {
+        setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      }
     } finally {
       setIsTyping(false);
     }
@@ -240,20 +260,30 @@ const VisaChatbot = ({ user }: { user?: User }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Chat Interface */}
-      <Card className="h-[600px] flex flex-col">
+      <Card className="h-[600px] flex flex-col lg:col-span-2">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-blue-600" />
-            Chatbot Assistant
-            {!user?.novitaApiKey && (
-              <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
-                <KeyRound className="h-3 w-3" />
-                API Key Missing
-              </Badge>
-            )}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-blue-600" />
+              <CardTitle>Chatbot Assistant</CardTitle>
+              {!user?.novitaApiKey && (
+                <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
+                  <KeyRound className="h-3 w-3" />
+                  API Key Missing
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="show-thinking" className="text-sm text-gray-500">Show thinking state</Label>
+              <Switch
+                id="show-thinking"
+                checked={showThinking}
+                onCheckedChange={setShowThinking}
+              />
+            </div>
+          </div>
           <CardDescription>
             Get instant help with visa requirements and documentation
             {!user?.novitaApiKey && (
@@ -264,7 +294,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="flex-1 flex flex-col p-0">
+        <CardContent className="flex-1 flex flex-col">
           {/* Messages Area */}
           <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
@@ -283,51 +313,27 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                     {message.type === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
                   
-                  <div className={`max-w-[80%] ${message.type === 'user' ? 'text-right' : ''}`}>
-                    <div className={`rounded-lg p-3 ${
-                      message.type === 'user'
-                        ? 'bg-blue-600 text-white ml-auto'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      {message.content ? (
-                        <p className="whitespace-pre-line text-sm">{message.content}</p>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Generating response...</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
-                      message.type === 'user' ? 'justify-end' : ''
-                    }`}>
-                      <span>{message.timestamp.toLocaleTimeString()}</span>
-                      {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
-                        <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
-                          {getCategoryIcon(message.category)}
-                          <span className="ml-1 capitalize">{message.category}</span>
-                        </Badge>
-                      )}
-                    </div>
+                  <div className={`rounded-lg p-3 max-w-[80%] ${
+                    message.type === 'user'
+                      ? 'bg-blue-600 text-white ml-auto'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}>
+                    <p className="whitespace-pre-line text-sm">{message.content}</p>
+                  </div>
+                  
+                  <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
+                    message.type === 'user' ? 'justify-end' : ''
+                  }`}>
+                    <span>{message.timestamp.toLocaleTimeString()}</span>
+                    {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
+                      <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
+                        {getCategoryIcon(message.category)}
+                        <span className="ml-1 capitalize">{message.category}</span>
+                      </Badge>
+                    )}
                   </div>
                 </div>
               ))}
-              
-              {isTyping && (
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                  <div className="bg-gray-100 rounded-lg p-3">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </ScrollArea>
           
@@ -357,83 +363,86 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         </CardContent>
       </Card>
 
-      {/* Quick Questions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Questions</CardTitle>
-          <CardDescription>Click on common questions to get instant answers</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {quickQuestions.map((question, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="justify-start text-left h-auto p-3"
-                onClick={() => handleQuickQuestion(question)}
-                disabled={isTyping}
-              >
-                {question}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Sidebar */}
+      <div className="space-y-6">
+        {/* Quick Questions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Questions</CardTitle>
+            <CardDescription>Click on common questions to get instant answers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-2">
+              {quickQuestions.map((question, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="justify-start text-left h-auto p-3"
+                  onClick={() => handleQuickQuestion(question)}
+                  disabled={isTyping}
+                >
+                  {question}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Document Checklist */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Document Checklist</CardTitle>
-          <CardDescription>Essential documents for your visa application</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-medium">Core Documents</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Valid Passport</span>
+        {/* Document Checklist */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Checklist</CardTitle>
+            <CardDescription>Essential documents for your visa application</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-medium">Core Documents</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Valid Passport</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>University Acceptance Letter</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Financial Documentation</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Academic Transcripts</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>University Acceptance Letter</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Financial Documentation</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Academic Transcripts</span>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-medium">Additional Requirements</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>English Proficiency Test</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Statement of Purpose</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Medical Examination</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Police Clearance Certificate</span>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-medium">Additional Requirements</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>English Proficiency Test</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Statement of Purpose</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Medical Examination</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-3 w-3" />
-                  <span>Police Clearance Certificate</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

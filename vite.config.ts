@@ -7,7 +7,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "::",
-    port: 8080
+    port: 8080,
+    proxy: {
+      '/api/chat': {
+        target: 'https://api.novita.ai/v3/openai/chat/completions',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/chat/, ''),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    }
   },
   resolve: {
     alias: {
