@@ -20,16 +20,33 @@ interface ProfileData {
   name?: string;
   email?: string;
   novitaApiKey?: string;
+  processedProfile?: ProcessedProfile;
+}
+
+interface ProcessedProfile {
+  personalizedInsights: string[];
+  recommendedUniversities: string[];
+  scholarshipOpportunities: string[];
+  visaRequirements: string[];
+  timelineRecommendations: string[];
+  budgetAnalysis: string;
+  academicPath: string;
+}
+
+// Extend ProfileData for onComplete
+interface ProfileDataWithProcessed extends ProfileData {
+  processedProfile: ProcessedProfile;
 }
 
 interface ProfileFormProps {
-  onComplete: (data: ProfileData) => void;
+  onComplete: (data: ProfileDataWithProcessed) => void;
   initialData?: ProfileData;
   isEdit?: boolean;
 }
 
 const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFormProps) => {
-  const [formData, setFormData] = useState<ProfileData>({
+  const [formData, setFormData] = useState<ProfileDataWithProcessed>({
+    ...initialData,
     budget: initialData.budget || '',
     preferredCountries: initialData.preferredCountries || [],
     academicInterests: initialData.academicInterests || [],
@@ -38,7 +55,15 @@ const ProfileForm = ({ onComplete, initialData = {}, isEdit = false }: ProfileFo
     englishProficiency: initialData.englishProficiency || '',
     timeline: initialData.timeline || '',
     novitaApiKey: initialData.novitaApiKey || '',
-    ...initialData
+    processedProfile: initialData.processedProfile || {
+      personalizedInsights: [],
+      recommendedUniversities: [],
+      scholarshipOpportunities: [],
+      visaRequirements: [],
+      timelineRecommendations: [],
+      budgetAnalysis: '',
+      academicPath: ''
+    }
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
