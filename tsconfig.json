@@ -24,12 +24,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
-    /* Next.js */
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowJs": true,
     "forceConsistentCasingInFileNames": true,
-    "incremental": true,
     /* Linting */
     "strict": true,
     "noUnusedLocals": false,
@@ -37,17 +35,12 @@
     "noFallthroughCasesInSwitch": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+
   },
   "include": [
     "*.config.js",
     "*.config.ts",
-    "src",
-    ".next/types/**/*.ts"
+    "src"
   ],
   "exclude": [
     "node_modules"

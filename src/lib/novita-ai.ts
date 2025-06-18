@@ -1,7 +1,7 @@
 const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528-qwen3-8b';
 
-// Use a relative path since we're proxying through Vite
-const API_URL = '/api/chat';
+// Direct API URL for Novita AI
+const API_URL = 'https://api.novita.ai/v3/openai/chat/completions';
 
 // Interface for chat message
 export interface ChatMessage {
@@ -53,29 +53,22 @@ export async function sendChatCompletion(
       }),
     });
 
-    const text = await response.text();
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error('Invalid JSON response:', text);
-      throw new Error('Invalid JSON response from server');
-    }
+    const data = await response.json();
 
     if (!response.ok) {
-      const error = data as ApiErrorResponse;
-      throw new Error(error.details || error.error || 'Failed to get response from server');
+      const errorMessage = data.error?.message || 'Failed to get response from Novita AI';
+      throw new Error(errorMessage);
     }
 
-    // Type guard for success response
-    if (
-      typeof data === 'object' && data !== null &&
-      'role' in data && typeof (data as Record<string, unknown>).role === 'string' &&
-      'content' in data && typeof (data as Record<string, unknown>).content === 'string'
-    ) {
-      return data as { role: string; content: string };
+    // Extract the message from the OpenAI-compatible response format
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+      return {
+        role: data.choices[0].message.role,
+        content: data.choices[0].message.content
+      };
     }
-    throw new Error('Unexpected response format from server');
+    
+    throw new Error('Unexpected response format from Novita AI');
   } catch (error: unknown) {
     console.error('Error in sendChatCompletion:', error);
     let errMsg = 'Unknown error occurred';
