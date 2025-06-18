@@ -76,8 +76,12 @@ export async function sendChatCompletion(
       return data as { role: string; content: string };
     }
     throw new Error('Unexpected response format from server');
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in sendChatCompletion:', error);
-    throw error;
+    let errMsg = 'Unknown error occurred';
+    if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: string }).message === 'string') {
+      errMsg = (error as { message: string }).message;
+    }
+    throw new Error(errMsg);
   }
 }

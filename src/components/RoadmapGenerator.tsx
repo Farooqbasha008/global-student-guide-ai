@@ -304,9 +304,9 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
 
   const TimelineSection = ({ title, tasks, timeframe }: { title: string; tasks: TimelineTask[]; timeframe: string }) => (
     <div className="space-y-4">
-        <h3 className="text-lg font-semibold">{title}</h3>
+      <h3 className="text-lg font-semibold">{title}</h3>
       <div className="space-y-4">
-        {tasks.map((task) => (
+        {tasks.map((task: TimelineTask) => (
           <Card key={task.id} className="relative">
             <CardContent className="pt-6">
               <div className="flex items-start space-x-4">
