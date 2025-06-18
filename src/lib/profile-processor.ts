@@ -62,7 +62,8 @@ export async function processProfileWithLLM(
       messages,
       {
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
+        purpose: 'profile'
       },
       apiKey
     );
@@ -169,4 +170,4 @@ export async function processProfileWithLLM(
       academicPath: "Research program requirements and prerequisites for your chosen field of study. Consider both short-term and long-term career goals when selecting programs."
     };
   }
-} 
+}

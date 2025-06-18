@@ -1,4 +1,8 @@
+// Default model for profile processing
 const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528-qwen3-8b';
+
+// Model for chatbot
+const CHATBOT_MODEL = 'qwen/qwen3-4b-fp8';
 
 // Direct API URL for Novita AI
 const API_URL = 'https://api.novita.ai/v3/openai/chat/completions';
@@ -14,6 +18,7 @@ export interface ChatOptions {
   model?: string;
   temperature?: number;
   max_tokens?: number;
+  purpose?: 'chatbot' | 'profile';
 }
 
 // Interface for API error response
@@ -47,7 +52,7 @@ export async function sendChatCompletion(
       },
       body: JSON.stringify({
         messages,
-        model: options.model || DEFAULT_MODEL,
+        model: options.model || (options.purpose === 'chatbot' ? CHATBOT_MODEL : DEFAULT_MODEL),
         temperature: options.temperature || 0.7,
         max_tokens: options.max_tokens || 1000,
       }),
