@@ -32,7 +32,7 @@ export async function sendChatCompletion(
   messages: ChatMessage[],
   options: ChatOptions = {},
   apiKey?: string
-): Promise<any> {
+): Promise<{ role: string; content: string }> {
   try {
     const apiKeyToUse = apiKey || import.meta.env.VITE_NOVITA_API_KEY;
     if (!apiKeyToUse) {
@@ -54,7 +54,7 @@ export async function sendChatCompletion(
     });
 
     const text = await response.text();
-    let data;
+    let data: unknown;
     try {
       data = JSON.parse(text);
     } catch (e) {
@@ -67,7 +67,15 @@ export async function sendChatCompletion(
       throw new Error(error.details || error.error || 'Failed to get response from server');
     }
 
-    return data;
+    // Type guard for success response
+    if (
+      typeof data === 'object' && data !== null &&
+      'role' in data && typeof (data as any).role === 'string' &&
+      'content' in data && typeof (data as any).content === 'string'
+    ) {
+      return data as { role: string; content: string };
+    }
+    throw new Error('Unexpected response format from server');
   } catch (error) {
     console.error('Error in sendChatCompletion:', error);
     throw error;

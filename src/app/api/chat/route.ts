@@ -52,27 +52,25 @@ export async function POST(req: NextRequest) {
       role: completion.choices[0].message.role,
       content: completion.choices[0].message.content
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in chat completion:', error);
-    
-    if (error.status === 401 || error.message?.includes('auth')) {
+    const err = error as { status?: number; message?: string };
+    if (err.status === 401 || err.message?.includes('auth')) {
       return Response.json(
         { error: 'Invalid API key' },
         { status: 401 }
       );
     }
-
-    if (error.status === 429) {
+    if (err.status === 429) {
       return Response.json(
         { error: 'Rate limit exceeded' },
         { status: 429 }
       );
     }
-
     return Response.json(
       { 
         error: 'Failed to get response from Novita AI',
-        details: error.message || 'Unknown error occurred'
+        details: err.message || 'Unknown error occurred'
       },
       { status: 500 }
     );
