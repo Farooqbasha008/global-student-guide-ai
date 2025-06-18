@@ -70,8 +70,8 @@ export async function sendChatCompletion(
     // Type guard for success response
     if (
       typeof data === 'object' && data !== null &&
-      'role' in data && typeof (data as any).role === 'string' &&
-      'content' in data && typeof (data as any).content === 'string'
+      'role' in data && typeof (data as Record<string, unknown>).role === 'string' &&
+      'content' in data && typeof (data as Record<string, unknown>).content === 'string'
     ) {
       return data as { role: string; content: string };
     }

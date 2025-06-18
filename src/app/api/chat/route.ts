@@ -54,14 +54,23 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error('Error in chat completion:', error);
-    const err = error as { status?: number; message?: string };
-    if (err.status === 401 || err.message?.includes('auth')) {
+    let errMsg = 'Unknown error occurred';
+    let errStatus: number | undefined = undefined;
+    if (typeof error === 'object' && error !== null) {
+      if ('message' in error && typeof (error as { message?: string }).message === 'string') {
+        errMsg = (error as { message: string }).message;
+      }
+      if ('status' in error && typeof (error as { status?: number }).status === 'number') {
+        errStatus = (error as { status: number }).status;
+      }
+    }
+    if (errStatus === 401 || errMsg.includes('auth')) {
       return Response.json(
         { error: 'Invalid API key' },
         { status: 401 }
       );
     }
-    if (err.status === 429) {
+    if (errStatus === 429) {
       return Response.json(
         { error: 'Rate limit exceeded' },
         { status: 429 }
@@ -70,7 +79,7 @@ export async function POST(req: NextRequest) {
     return Response.json(
       { 
         error: 'Failed to get response from Novita AI',
-        details: err.message || 'Unknown error occurred'
+        details: errMsg
       },
       { status: 500 }
     );

@@ -35,35 +35,21 @@ interface User {
   };
 }
 
+interface TimelineTask {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  icon: React.ElementType;
+  estimatedTime: string;
+}
+
 interface RoadmapData {
   timeline: {
-    shortTerm: Array<{
-      id: number;
-      title: string;
-      description: string;
-      category: string;
-      priority: string;
-      icon: any;
-      estimatedTime: string;
-    }>;
-    mediumTerm: Array<{
-      id: number;
-      title: string;
-      description: string;
-      category: string;
-      priority: string;
-      icon: any;
-      estimatedTime: string;
-    }>;
-    longTerm: Array<{
-      id: number;
-      title: string;
-      description: string;
-      category: string;
-      priority: string;
-      icon: any;
-      estimatedTime: string;
-    }>;
+    shortTerm: TimelineTask[];
+    mediumTerm: TimelineTask[];
+    longTerm: TimelineTask[];
   };
   personalizedTips: string[];
   totalSteps: number;
@@ -316,7 +302,7 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
     );
   }
 
-  const TimelineSection = ({ title, tasks, timeframe }: { title: string; tasks: any[]; timeframe: string }) => (
+  const TimelineSection = ({ title, tasks, timeframe }: { title: string; tasks: TimelineTask[]; timeframe: string }) => (
     <div className="space-y-4">
         <h3 className="text-lg font-semibold">{title}</h3>
       <div className="space-y-4">
