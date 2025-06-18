@@ -11,6 +11,7 @@ interface ProfileData {
   name?: string;
   email?: string;
   novitaApiKey?: string;
+  processedProfile?: ProcessedProfile;
 }
 
 interface ProcessedProfile {
@@ -67,7 +68,7 @@ export async function processProfileWithLLM(
     );
 
     // Extract the JSON string from the response
-    const content = response.choices[0]?.message?.content;
+    const content = response.content;
     if (!content) {
       throw new Error('Empty response from LLM');
     }
