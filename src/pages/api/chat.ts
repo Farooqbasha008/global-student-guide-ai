@@ -51,16 +51,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: completion.choices[0].message.role,
       content: completion.choices[0].message.content
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in chat completion:', error);
     let errMsg = 'Unknown error occurred';
     let errStatus: number | undefined = undefined;
     
-    if (error?.message) {
-      errMsg = error.message;
-    }
-    if (error?.status) {
-      errStatus = error.status;
+    if (typeof error === 'object' && error !== null) {
+      if ('message' in error && typeof (error as { message?: string }).message === 'string') {
+        errMsg = (error as { message: string }).message;
+      }
+      if ('status' in error && typeof (error as { status?: number }).status === 'number') {
+        errStatus = (error as { status: number }).status;
+      }
     }
 
     if (errStatus === 401 || errMsg.includes('auth')) {
