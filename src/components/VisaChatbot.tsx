@@ -52,12 +52,12 @@ const VisaChatbot = ({ user }: { user?: User }) => {
   useEffect(() => {
     if (messages.length === 0) {
       const greetingMessage: Message = {
-        id: 1,
-        type: 'bot',
+      id: 1,
+      type: 'bot',
         content: `Hello ${user?.name || 'there'}! 👋 I'm your study abroad assistant. I'm here to help you with everything about studying abroad - from choosing universities and courses to visa requirements, accommodation, scholarships, and student life${user?.preferredCountries?.length ? ` in ${user.preferredCountries.join(', ')}` : ''}. What would you like to know?`,
-        timestamp: new Date(),
-        category: 'greeting'
-      };
+      timestamp: new Date(),
+      category: 'greeting'
+    };
       setMessages([greetingMessage]);
     }
   }, [messages.length, user?.name, user?.preferredCountries]);
@@ -94,11 +94,11 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       const conversationHistory: ChatMessage[] = [
         {
           role: 'system',
-          content: `You are an AI visa assistant for international students. 
+          content: `You are an AI study abroad assistant. 
           The user's name is ${user?.name || 'Unknown'} and they are interested in studying in ${user?.preferredCountries?.join(', ') || 'various countries'}. 
           Their academic interests are ${user?.academicInterests?.join(', ') || 'not specified'}. 
           Their budget is ${user?.budget || 'not specified'}. 
-          Provide helpful, accurate information about visa requirements, application processes, documentation, interviews, and other related topics. 
+          Provide helpful, accurate information about studying abroad, including university selection, visa requirements, application processes, documentation, interviews, and other related topics. 
           Be conversational but professional. Keep responses concise but informative.`
         }
       ];
@@ -118,18 +118,19 @@ const VisaChatbot = ({ user }: { user?: User }) => {
 
       // Only add thinking message if showThinking is true
       if (showThinking) {
-        const tempBotMessage: Message = {
-          id: messages.length + 2,
-          type: 'bot',
-          content: 'Thinking...',
-          timestamp: new Date(),
-          category: 'processing'
-        };
-        setMessages(prev => [...prev, tempBotMessage]);
+      const tempBotMessage: Message = {
+        id: messages.length + 2,
+        type: 'bot',
+        content: 'Thinking...',
+        timestamp: new Date(),
+        category: 'processing'
+      };
+      setMessages(prev => [...prev, tempBotMessage]);
       }
 
       // Check if user has provided an API key
-      if (!user?.novitaApiKey && !import.meta.env.VITE_NOVITA_API_KEY) {
+      const apiKey = user?.novitaApiKey || import.meta.env.VITE_NOVITA_API_KEY;
+      if (!apiKey) {
         toast({
           title: 'API Key Missing',
           description: 'Please add your Novita AI API key in your profile settings or environment variables.',
@@ -139,56 +140,52 @@ const VisaChatbot = ({ user }: { user?: User }) => {
       }
 
       // Get the response from Novita AI
-      const response = await sendChatCompletion(
-        conversationHistory,
-        {
-          temperature: 0.7,
-          max_tokens: 1024
-        },
-        user?.novitaApiKey || import.meta.env.VITE_NOVITA_API_KEY
-      );
+      try {
+        const response = await sendChatCompletion(
+          conversationHistory,
+          {
+            temperature: 0.7,
+            max_tokens: 1024
+          },
+          apiKey
+        );
 
-      // Determine message category based on content
-      const determineCategory = (content: string): string => {
-        const lowerContent = content.toLowerCase();
-        if (lowerContent.includes('document') || lowerContent.includes('requirement')) return 'documents';
-        if (lowerContent.includes('interview')) return 'interview';
-        if (lowerContent.includes('financial') || lowerContent.includes('money') || lowerContent.includes('fund')) return 'financial';
-        if (lowerContent.includes('reject') || lowerContent.includes('denied')) return 'rejection';
-        if (lowerContent.includes('work') || lowerContent.includes('job')) return 'work';
-        if (lowerContent.includes('timeline') || lowerContent.includes('time') || lowerContent.includes('when')) return 'timeline';
-        return 'general';
-      };
+        // Process the response and update messages
+        setMessages(prev => [...prev, {
+          id: messages.length + 2,
+          type: 'bot',
+          content: response.content,
+          timestamp: new Date(),
+          category: determineCategory(response.content)
+        }]);
+      } catch (error) {
+        console.error('Error generating response:', error);
 
-      // Update messages based on showThinking state
-      setMessages(prev => {
-        if (showThinking) {
-          // If showing thinking state, update the last message
-          const updatedMessages = [...prev];
-          const lastIndex = updatedMessages.length - 1;
-          if (lastIndex >= 0 && updatedMessages[lastIndex].type === 'bot') {
-            updatedMessages[lastIndex] = {
-              ...updatedMessages[lastIndex],
-              content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
-              category: determineCategory(response.choices[0]?.message?.content || ''),
-              type: 'bot' as const
-            };
-          }
-          return updatedMessages;
+        const errorMessage = error.toString();
+        if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
+          toast({
+            title: 'API Key Error',
+            description: 'There was an issue with your Novita AI API key. Please check that it is valid.',
+            variant: 'destructive'
+          });
+        } else if (errorMessage.includes('CORS')) {
+          toast({
+            title: 'Connection Error',
+            description: 'Unable to connect to the AI service. Please try again later.',
+            variant: 'destructive'
+          });
         } else {
-          // If not showing thinking state, add a new message
-          return [
-            ...prev,
-            {
-              id: prev.length + 1,
-              type: 'bot',
-              content: response.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
-              timestamp: new Date(),
-              category: determineCategory(response.choices[0]?.message?.content || '')
-            }
-          ];
+          toast({
+            title: 'Error',
+            description: 'Failed to generate a response. Please try again.',
+            variant: 'destructive'
+          });
         }
-      });
+
+        if (showThinking) {
+          setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+        }
+      }
     } catch (error) {
       console.error('Error generating response:', error);
       
@@ -216,7 +213,7 @@ const VisaChatbot = ({ user }: { user?: User }) => {
 
       // Remove the temporary bot message if there was an error and thinking state is shown
       if (showThinking) {
-        setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
+      setMessages(prev => prev.filter(msg => msg.content !== 'Thinking...'));
       }
     } finally {
       setIsTyping(false);
@@ -259,6 +256,18 @@ const VisaChatbot = ({ user }: { user?: User }) => {
     }
   };
 
+  // Added determineCategory function
+  const determineCategory = (content: string): string => {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('document') || lowerContent.includes('requirement')) return 'documents';
+    if (lowerContent.includes('interview')) return 'interview';
+    if (lowerContent.includes('financial') || lowerContent.includes('money') || lowerContent.includes('fund')) return 'financial';
+    if (lowerContent.includes('reject') || lowerContent.includes('denied')) return 'rejection';
+    if (lowerContent.includes('work') || lowerContent.includes('job')) return 'work';
+    if (lowerContent.includes('timeline') || lowerContent.includes('time') || lowerContent.includes('when')) return 'timeline';
+    return 'general';
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Chat Interface */}
@@ -266,14 +275,14 @@ const VisaChatbot = ({ user }: { user?: User }) => {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-blue-600" />
+            <Bot className="h-5 w-5 text-blue-600" />
               <CardTitle>Chatbot Assistant</CardTitle>
-              {!user?.novitaApiKey && (
-                <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
-                  <KeyRound className="h-3 w-3" />
-                  API Key Missing
-                </Badge>
-              )}
+            {!user?.novitaApiKey && (
+              <Badge variant="outline" className="ml-2 text-xs flex items-center gap-1">
+                <KeyRound className="h-3 w-3" />
+                API Key Missing
+              </Badge>
+            )}
             </div>
             <div className="flex items-center gap-2">
               <Label htmlFor="show-thinking" className="text-sm text-gray-500">Show thinking state</Label>
@@ -314,23 +323,23 @@ const VisaChatbot = ({ user }: { user?: User }) => {
                   </div>
                   
                   <div className={`rounded-lg p-3 max-w-[80%] ${
-                    message.type === 'user'
-                      ? 'bg-blue-600 text-white ml-auto'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    <p className="whitespace-pre-line text-sm">{message.content}</p>
-                  </div>
-                  
-                  <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
-                    message.type === 'user' ? 'justify-end' : ''
-                  }`}>
-                    <span>{message.timestamp.toLocaleTimeString()}</span>
-                    {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
-                      <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
-                        {getCategoryIcon(message.category)}
-                        <span className="ml-1 capitalize">{message.category}</span>
-                      </Badge>
-                    )}
+                      message.type === 'user'
+                        ? 'bg-blue-600 text-white ml-auto'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}>
+                        <p className="whitespace-pre-line text-sm">{message.content}</p>
+                    </div>
+                    
+                    <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
+                      message.type === 'user' ? 'justify-end' : ''
+                    }`}>
+                      <span>{message.timestamp.toLocaleTimeString()}</span>
+                      {message.category !== 'user' && message.category !== 'greeting' && message.category !== 'processing' && (
+                        <Badge variant="secondary" className={`${getCategoryColor(message.category)} text-xs`}>
+                          {getCategoryIcon(message.category)}
+                          <span className="ml-1 capitalize">{message.category}</span>
+                        </Badge>
+                      )}
                   </div>
                 </div>
               ))}
@@ -365,83 +374,83 @@ const VisaChatbot = ({ user }: { user?: User }) => {
 
       {/* Sidebar */}
       <div className="space-y-6">
-        {/* Quick Questions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Questions</CardTitle>
-            <CardDescription>Click on common questions to get instant answers</CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Quick Questions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Questions</CardTitle>
+          <CardDescription>Click on common questions to get instant answers</CardDescription>
+        </CardHeader>
+        <CardContent>
             <div className="grid grid-cols-1 gap-2">
-              {quickQuestions.map((question, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="justify-start text-left h-auto p-3"
-                  onClick={() => handleQuickQuestion(question)}
-                  disabled={isTyping}
-                >
-                  {question}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+            {quickQuestions.map((question, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                className="justify-start text-left h-auto p-3"
+                onClick={() => handleQuickQuestion(question)}
+                disabled={isTyping}
+              >
+                {question}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Document Checklist */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Document Checklist</CardTitle>
-            <CardDescription>Essential documents for your visa application</CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Document Checklist */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Checklist</CardTitle>
+          <CardDescription>Essential documents for your visa application</CardDescription>
+        </CardHeader>
+        <CardContent>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-medium">Core Documents</h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Valid Passport</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>University Acceptance Letter</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Financial Documentation</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Academic Transcripts</span>
-                  </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Core Documents</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Valid Passport</span>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium">Additional Requirements</h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>English Proficiency Test</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Statement of Purpose</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Medical Examination</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-3 w-3" />
-                    <span>Police Clearance Certificate</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>University Acceptance Letter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Financial Documentation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Academic Transcripts</span>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium">Additional Requirements</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>English Proficiency Test</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Statement of Purpose</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Medical Examination</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-3 w-3" />
+                  <span>Police Clearance Certificate</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     </div>
   );

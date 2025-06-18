@@ -1,20 +1,11 @@
-import OpenAI from 'openai';
-
-// Initialize the OpenAI client with Novita AI's base URL
-const createNovitaClient = (apiKey: string) => {
-  return new OpenAI({
-    baseURL: 'https://corsproxy.io/?url=' + encodeURIComponent('https://api.novita.ai/v3/openai'),
-    apiKey: apiKey || import.meta.env.VITE_NOVITA_API_KEY || '',
-    dangerouslyAllowBrowser: true
-  });
-};
-
-// Default model to use
 const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528-qwen3-8b';
+
+// Use a relative path since we're proxying through Vite
+const API_URL = '/api/chat';
 
 // Interface for chat message
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
@@ -23,6 +14,12 @@ export interface ChatOptions {
   model?: string;
   temperature?: number;
   max_tokens?: number;
+}
+
+// Interface for API error response
+interface ApiErrorResponse {
+  error: string;
+  details?: string;
 }
 
 /**
@@ -37,11 +34,16 @@ export async function sendChatCompletion(
   apiKey?: string
 ): Promise<any> {
   try {
-    const response = await fetch('/api/chat', {
+    const apiKeyToUse = apiKey || import.meta.env.VITE_NOVITA_API_KEY;
+    if (!apiKeyToUse) {
+      throw new Error('API key is missing. Please provide a valid Novita AI API key.');
+    }
+
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey || import.meta.env.VITE_NOVITA_API_KEY || ''}`
+        'Authorization': `Bearer ${apiKeyToUse}`
       },
       body: JSON.stringify({
         messages,
@@ -51,12 +53,20 @@ export async function sendChatCompletion(
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.details || 'Failed to get response from server');
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('Invalid JSON response:', text);
+      throw new Error('Invalid JSON response from server');
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      const error = data as ApiErrorResponse;
+      throw new Error(error.details || error.error || 'Failed to get response from server');
+    }
+
     return data;
   } catch (error) {
     console.error('Error in sendChatCompletion:', error);

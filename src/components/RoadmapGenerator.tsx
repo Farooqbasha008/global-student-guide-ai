@@ -12,7 +12,8 @@ import {
   DollarSign,
   Plane,
   GraduationCap,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -72,17 +73,115 @@ interface RoadmapData {
 const RoadmapGenerator = ({ user }: { user?: User }) => {
   const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [completedSteps, setCompletedSteps] = useState(new Set<number>());
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.processedProfile) {
+      generateRoadmap();
+    }
+  }, [user?.processedProfile]);
 
   const generateRoadmap = () => {
-    if (!user?.processedProfile) {
-      // Fallback to basic roadmap if no processed profile
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      if (!user?.processedProfile) {
+        // Fallback to basic roadmap if no processed profile
+    const baseTimeline = {
+          shortTerm: [
+      {
+        id: 1,
+              title: "Research Universities",
+              description: "Explore universities in your preferred countries",
+              category: "Research",
+        priority: "high",
+              icon: GraduationCap,
+              estimatedTime: "2-3 weeks"
+      },
+      {
+        id: 2,
+              title: "Prepare Documents",
+              description: "Gather required academic and personal documents",
+              category: "Documents",
+        priority: "high",
+              icon: FileText,
+        estimatedTime: "1-2 weeks"
+      }
+          ],
+          mediumTerm: [
+      {
+        id: 3,
+        title: "University Applications",
+        description: "Submit applications to selected universities",
+        category: "Applications",
+        priority: "high",
+        icon: FileText,
+        estimatedTime: "4-6 weeks"
+      },
+      {
+              id: 4,
+        title: "Visa Documentation",
+        description: "Prepare and organize visa application documents",
+        category: "Visa",
+        priority: "medium",
+              icon: FileText,
+        estimatedTime: "2-3 weeks"
+      }
+          ],
+          longTerm: [
+            {
+              id: 5,
+        title: "Visa Application",
+        description: "Submit visa application after university acceptance",
+        category: "Visa",
+        priority: "high",
+              icon: FileText,
+        estimatedTime: "4-8 weeks"
+      },
+      {
+              id: 6,
+        title: "Pre-departure Preparation",
+        description: "Accommodation, travel, and cultural preparation",
+        category: "Preparation",
+        priority: "medium",
+              icon: FileText,
+        estimatedTime: "4-6 weeks"
+      }
+          ]
+        };
+
+        setRoadmapData({
+      timeline: baseTimeline,
+      personalizedTips: [
+            "Consider your budget when selecting universities",
+            "Research scholarship opportunities",
+            "Start preparing required documents early"
+          ],
+          totalSteps: 6,
+          estimatedCompletion: "6-8 months"
+        });
+        return;
+      }
+
+      // Use the processed profile data to generate a personalized roadmap
+      const { 
+        personalizedInsights,
+        recommendedUniversities,
+        scholarshipOpportunities,
+        visaRequirements,
+        timelineRecommendations,
+        budgetAnalysis,
+        academicPath
+      } = user.processedProfile;
+
       const baseTimeline = {
         shortTerm: [
           {
             id: 1,
-            title: "Research Universities",
-            description: "Explore universities in your preferred countries",
+            title: "Research Recommended Universities",
+            description: recommendedUniversities.join(", "),
             category: "Research",
             priority: "high",
             icon: GraduationCap,
@@ -90,8 +189,8 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
           },
           {
             id: 2,
-            title: "Prepare Documents",
-            description: "Gather required academic and personal documents",
+            title: "Prepare Required Documents",
+            description: visaRequirements.join(", "),
             category: "Documents",
             priority: "high",
             icon: FileText,
@@ -101,21 +200,21 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
         mediumTerm: [
           {
             id: 3,
+            title: "Apply for Scholarships",
+            description: scholarshipOpportunities.join(", "),
+            category: "Financial",
+            priority: "high",
+            icon: DollarSign,
+            estimatedTime: "4-6 weeks"
+          },
+          {
+            id: 4,
             title: "University Applications",
             description: "Submit applications to selected universities",
             category: "Applications",
             priority: "high",
             icon: FileText,
             estimatedTime: "4-6 weeks"
-          },
-          {
-            id: 4,
-            title: "Visa Documentation",
-            description: "Prepare and organize visa application documents",
-            category: "Visa",
-            priority: "medium",
-            icon: FileText,
-            estimatedTime: "2-3 weeks"
           }
         ],
         longTerm: [
@@ -142,113 +241,33 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
 
       setRoadmapData({
         timeline: baseTimeline,
-        personalizedTips: [
-          "Consider your budget when selecting universities",
-          "Research scholarship opportunities",
-          "Start preparing required documents early"
-        ],
+        personalizedTips: personalizedInsights,
         totalSteps: 6,
         estimatedCompletion: "6-8 months"
       });
-      return;
+    } catch (error) {
+      console.error('Error generating roadmap:', error);
+      setError('Failed to generate roadmap. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to generate roadmap. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
     }
-
-    // Use the processed profile data to generate a personalized roadmap
-    const { 
-      personalizedInsights,
-      recommendedUniversities,
-      scholarshipOpportunities,
-      visaRequirements,
-      timelineRecommendations,
-      budgetAnalysis,
-      academicPath
-    } = user.processedProfile;
-
-    const baseTimeline = {
-      shortTerm: [
-        {
-          id: 1,
-          title: "Research Recommended Universities",
-          description: recommendedUniversities.join(", "),
-          category: "Research",
-          priority: "high",
-          icon: GraduationCap,
-          estimatedTime: "2-3 weeks"
-        },
-        {
-          id: 2,
-          title: "Prepare Required Documents",
-          description: visaRequirements.join(", "),
-          category: "Documents",
-          priority: "high",
-          icon: FileText,
-          estimatedTime: "1-2 weeks"
-        }
-      ],
-      mediumTerm: [
-        {
-          id: 3,
-          title: "Apply for Scholarships",
-          description: scholarshipOpportunities.join(", "),
-          category: "Financial",
-          priority: "high",
-          icon: DollarSign,
-          estimatedTime: "4-6 weeks"
-        },
-        {
-          id: 4,
-          title: "University Applications",
-          description: "Submit applications to selected universities",
-          category: "Applications",
-          priority: "high",
-          icon: GraduationCap,
-          estimatedTime: "4-6 weeks"
-        }
-      ],
-      longTerm: [
-        {
-          id: 5,
-          title: "Visa Application Process",
-          description: visaRequirements.join(", "),
-          category: "Visa",
-          priority: "high",
-          icon: FileText,
-          estimatedTime: "4-8 weeks"
-        },
-        {
-          id: 6,
-          title: "Academic Preparation",
-          description: academicPath,
-          category: "Academic",
-          priority: "medium",
-          icon: BookOpen,
-          estimatedTime: "4-6 weeks"
-        }
-      ]
-    };
-
-    setRoadmapData({
-      timeline: baseTimeline,
-      personalizedTips: personalizedInsights,
-      totalSteps: 6,
-      estimatedCompletion: timelineRecommendations[0] || "6-8 months"
-    });
   };
 
-  useEffect(() => {
-    if (user) {
-      generateRoadmap();
-    }
-  }, [user]);
-
-  const toggleStepCompletion = (stepId) => {
-    const newCompleted = new Set(completedSteps);
-    if (newCompleted.has(stepId)) {
-      newCompleted.delete(stepId);
+  const toggleStepCompletion = (stepId: number) => {
+    setCompletedSteps(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(stepId)) {
+        newSet.delete(stepId);
     } else {
-      newCompleted.add(stepId);
+        newSet.add(stepId);
     }
-    setCompletedSteps(newCompleted);
+      return newSet;
+    });
   };
 
   const getCompletionPercentage = () => {
@@ -256,44 +275,73 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
     return Math.round((completedSteps.size / roadmapData.totalSteps) * 100);
   };
 
-  const TimelineSection = ({ title, tasks, timeframe }) => (
+  if (error) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Error</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={generateRoadmap} className="w-full">
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isGenerating) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Generating Roadmap</CardTitle>
+          <CardDescription>Please wait while we create your personalized roadmap...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!roadmapData) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>No Roadmap Available</CardTitle>
+          <CardDescription>Please complete your profile to generate a personalized roadmap.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const TimelineSection = ({ title, tasks, timeframe }: { title: string; tasks: any[]; timeframe: string }) => (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
         <h3 className="text-lg font-semibold">{title}</h3>
-        <Badge variant="outline">{timeframe}</Badge>
-      </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {tasks.map((task) => (
-          <Card key={task.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <button
-                  onClick={() => toggleStepCompletion(task.id)}
-                  className="mt-1 transition-colors"
-                >
+          <Card key={task.id} className="relative">
+            <CardContent className="pt-6">
+              <div className="flex items-start space-x-4">
+                <div className="mt-1">
                   {completedSteps.has(task.id) ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
-                    <Circle className="h-5 w-5 text-gray-400 hover:text-blue-600" />
+                    <Circle className="h-5 w-5 text-gray-300" />
                   )}
-                </button>
+                </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <task.icon className="h-4 w-4 text-blue-600" />
-                    <h4 className={`font-medium ${completedSteps.has(task.id) ? 'line-through text-gray-500' : ''}`}>
-                      {task.title}
-                    </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">{task.title}</h4>
                     <Badge variant={task.priority === 'high' ? 'destructive' : 'secondary'}>
                       {task.priority}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {task.estimatedTime}
-                    </span>
-                    <span className="bg-gray-100 px-2 py-1 rounded">{task.category}</span>
+                  <p className="text-sm text-gray-500 mt-1">{task.description}</p>
+                  <div className="flex items-center mt-2 text-sm text-gray-500">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>{task.estimatedTime}</span>
                   </div>
                 </div>
               </div>
@@ -304,136 +352,73 @@ const RoadmapGenerator = ({ user }: { user?: User }) => {
     </div>
   );
 
-  if (isGenerating) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Generating Your Personalized Roadmap...</h3>
-          <p className="text-gray-600">Analyzing your preferences and creating a custom plan</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!roadmapData) {
-    return (
-      <div className="text-center py-12">
-        <GraduationCap className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No Roadmap Available</h3>
-        <p className="text-gray-600 mb-4">Generate your personalized study abroad roadmap</p>
-        <Button onClick={generateRoadmap}>Generate Roadmap</Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Your Personalized Roadmap</CardTitle>
+          <CardTitle>Your Study Abroad Roadmap</CardTitle>
           <CardDescription>
-            A step-by-step guide to your study abroad journey
+            Personalized timeline and tasks based on your profile
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            {/* Short-term Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Short-term Tasks (1-3 months)</h3>
-              <div className="space-y-4">
-                {roadmapData.timeline.shortTerm.map((task) => (
-                  <div key={task.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <task.icon className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{task.title}</h4>
-                        <Badge variant="secondary" className="ml-2">
-                          {task.estimatedTime}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Progress</p>
+                <p className="text-2xl font-bold">{getCompletionPercentage()}%</p>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateRoadmap}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Regenerate
+              </Button>
             </div>
-
-            {/* Medium-term Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Medium-term Tasks (3-6 months)</h3>
-              <div className="space-y-4">
-                {roadmapData.timeline.mediumTerm.map((task) => (
-                  <div key={task.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <task.icon className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{task.title}</h4>
-                        <Badge variant="secondary" className="ml-2">
-                          {task.estimatedTime}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Long-term Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Long-term Tasks (6+ months)</h3>
-              <div className="space-y-4">
-                {roadmapData.timeline.longTerm.map((task) => (
-                  <div key={task.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <task.icon className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{task.title}</h4>
-                        <Badge variant="secondary" className="ml-2">
-                          {task.estimatedTime}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Personalized Tips */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Personalized Tips</h3>
-              <div className="space-y-2">
-                {roadmapData.personalizedTips.map((tip, index) => (
-                  <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-blue-800">{tip}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Timeline Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Total Steps</h4>
-                  <p className="text-2xl font-bold text-blue-600">{roadmapData.totalSteps}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium">Estimated Completion</h4>
-                  <p className="text-2xl font-bold text-green-600">{roadmapData.estimatedCompletion}</p>
-                </div>
-              </div>
-            </div>
+            <Progress value={getCompletionPercentage()} />
           </div>
+        </CardContent>
+      </Card>
+
+      <ScrollArea className="h-[600px] pr-4">
+        <div className="space-y-8">
+          <TimelineSection
+            title="Short Term (2-3 weeks)"
+            tasks={roadmapData.timeline.shortTerm}
+            timeframe="2-3 weeks"
+          />
+          <TimelineSection
+            title="Medium Term (1-3 months)"
+            tasks={roadmapData.timeline.mediumTerm}
+            timeframe="1-3 months"
+          />
+          <TimelineSection
+            title="Long Term (3-6 months)"
+            tasks={roadmapData.timeline.longTerm}
+            timeframe="3-6 months"
+          />
+        </div>
+      </ScrollArea>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Personalized Tips</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc list-inside space-y-2">
+            {roadmapData.personalizedTips.map((tip, index) => (
+              <li key={index} className="text-sm text-gray-600">
+                {tip}
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
     </div>

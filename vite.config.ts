@@ -9,15 +9,13 @@ export default defineConfig({
     host: "::",
     port: 8080,
     proxy: {
-      '/api/chat': {
-        target: 'https://api.novita.ai/v3/openai/chat/completions',
+      '/api': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/chat/, ''),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        secure: false,
+        ws: true
       }
-    }
+    },
   },
   resolve: {
     alias: {
